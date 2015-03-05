@@ -1,0 +1,81 @@
+#/bin/sh
+
+# commands.
+SENDMAIL=/usr/sbin/sendmail
+ECHO=/bin/echo
+CAT=/bin/cat
+RM=/bin/rm
+OPENSSL=/usr/bin/openssl
+MYSQL=/usr/bin/mysql
+DATE=/bin/date
+
+# attachment file info.
+ATTACH_FILE1=hogehoge_
+ATTACH_FILE2=`date +%Y%m%d`
+ATTACH_FILE3=.tsv
+ATTACH_FILE=$ATTACH_FILE1$ATTACH_FILE2$ATTACH_FILE3
+ATTACH_PATH=/tmp/$ATTACH_FILE
+
+# mail head settings.
+MAIL_BODY=/tmp/mail_body.txt
+MAIL_FROM=hoge@abc.com
+MAIL_TO=hoge@abc.com
+MAIL_CC=hoge@abc.com
+MAIL_SUBJECT1="ほげほげレポート_"
+MAIL_SUBJECT2=`date +%Y%m`
+MAIL_SUBJECT=$MAIL_SUBJECT1$MAIL_SUBJECT2
+MAIL_BOUNDARY=`date +%Y%m%d%H%M%N`
+
+# make attachment file.
+$MYSQL --host 192.168.11.11 --user hogehoge --password=hogehoge --execute="select hoge from hoge" > $ATTACH_PATH
+
+# attachment compression.
+cd /tmp
+# $GZIP $ATTACH_FILE
+
+# make body.
+$ECHO "各位" > $MAIL_BODY
+$ECHO "" >> $MAIL_BODY
+$ECHO "お疲れ様です。" >> $MAIL_BODY
+$ECHO "ほげほげレポートをご報告します。" >> $MAIL_BODY
+$ECHO "添付してお送りします。" >> $MAIL_BODY
+$ECHO "" >> $MAIL_BODY
+$ECHO "以上です、よろしくお願いします。" >> $MAIL_BODY
+$ECHO "" >> $MAIL_BODY
+$ECHO "--" >> $MAIL_BODY
+$ECHO "このメールには返信できません(Do Not Reply to This E-mail)" >> $MAIL_BODY
+$ECHO "" >> $MAIL_BODY
+$ECHO "[データに関するお問い合わせ]" >> $MAIL_BODY
+$ECHO "ほげほげ → hoge@abc.com" >> $MAIL_BODY
+
+# send mail.
+$SENDMAIL -t << EOF
+From: ${MAIL_FROM}
+To: ${MAIL_TO}
+Cc: ${MAIL_CC}
+Subject: ${MAIL_SUBJECT}
+MIME-Version: 1.0
+Content-type: multipart/mixed; boundary=${MAIL_BOUNDARY}
+Content-Transfer-Encoding: 7bit
+
+--${MAIL_BOUNDARY}
+Content-type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+
+`${CAT} ${MAIL_BODY}`
+
+--${MAIL_BOUNDARY}
+Content-type: text/csv;
+name=${ATTACH_FILE}
+Content-Transfer-Encoding: base64
+Content-Disposition : attachment;
+filename=${ATTACH_FILE}
+
+`${CAT} ${ATTACH_PATH} | ${OPENSSL} enc -base64`
+
+--${MAIL_BOUNDARY}--
+EOF
+
+# remove file
+$RM -fr ${ATTACH_PATH}
+$RM -fr ${MAIL_BODY}
